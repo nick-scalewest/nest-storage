@@ -29,7 +29,7 @@ export class S3Storage implements StorageDriver {
       });
     }
     if (config.endpoint) {
-      options['endpoint'] = new Endpoint(config.endpoint)
+      options['endpoint'] = config.endpoint
     }
 
     this.client = new S3(options);

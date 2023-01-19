@@ -1,5 +1,5 @@
 {
-  "name": "@username/nest-storage",
+  "name": "@nick.scalewest/nest-storage",
   "version": "0.0.1",
   "description": "Multi disk multi driver storage manager for NestJS 💿💾",
   "main": "dist/index.js",
