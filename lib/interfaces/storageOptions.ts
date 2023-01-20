@@ -1,4 +1,5 @@
 import { ModuleMetadata, Type } from "@nestjs/common/interfaces";
+import { Endpoint } from 'aws-sdk/lib/endpoint';
 
 export interface DiskOptions {
   driver: "s3" | "local";
@@ -7,7 +8,7 @@ export interface DiskOptions {
   bucket?: string;
   prefix?: string;
   basePath?: string;
-  endpoint?: string;
+  endpoint?: string | Endpoint;
   signatureVersion?: string;
 }
 

@@ -6,7 +6,7 @@ import {
   StorageDriver$PutFileResponse,
   StorageDriver$RenameFileResponse,
 } from "../interfaces";
-import { S3, SharedIniFileCredentials, Endpoint } from "aws-sdk";
+import { S3, SharedIniFileCredentials } from "aws-sdk";
 import { getMimeFromExtension } from "../helpers";
 import { HeadObjectRequest, PutObjectRequest } from "aws-sdk/clients/s3";
 
