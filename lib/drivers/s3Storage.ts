@@ -28,11 +28,8 @@ export class S3Storage implements StorageDriver {
         profile: config.profile,
       });
     }
-    if (config.endpoint) {
-      options['endpoint'] = config.endpoint
-    }
 
-    this.client = new S3(options);
+    this.client = new S3({...options, ...config});
   }
 
   /**

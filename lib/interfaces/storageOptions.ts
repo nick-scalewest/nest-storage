@@ -8,6 +8,7 @@ export interface DiskOptions {
   prefix?: string;
   basePath?: string;
   endpoint?: string;
+  signatureVersion?: string;
 }
 
 export interface StorageOptions {
