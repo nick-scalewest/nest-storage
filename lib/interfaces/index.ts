@@ -7,6 +7,7 @@ export interface StorageDriver$FileMetadataResponse {
   contentType?: string;
   contentLength?: number;
   lastModified?: Date;
+  etag?: string
 }
 
 export type StorageDriver$GetFileResponse = Buffer | null;

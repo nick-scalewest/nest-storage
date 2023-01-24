@@ -6,30 +6,21 @@ import {
   StorageDriver$PutFileResponse,
   StorageDriver$RenameFileResponse,
 } from "../interfaces";
-import { S3, SharedIniFileCredentials } from "aws-sdk";
 import { getMimeFromExtension } from "../helpers";
-import { HeadObjectRequest, PutObjectRequest } from "aws-sdk/clients/s3";
 
-export class S3Storage implements StorageDriver {
+import * as minio from "minio";
+import { Client, ClientOptions, ItemBucketMetadata } from "minio";
+
+export class Minio implements StorageDriver {
   private readonly disk: string;
   private config: DiskOptions;
-  private client: S3;
+  private client: Client;
 
   constructor(disk: string, config: DiskOptions) {
     this.disk = disk;
     this.config = config;
-    const options = {
-      signatureVersion: "v4",
-      region: this.config.region,
-    } as Record<string, any>;
 
-    if (config.profile) {
-      options["credentials"] = new SharedIniFileCredentials({
-        profile: config.profile,
-      });
-    }
-
-    this.client = new S3(options);
+    this.client = new minio.Client(<ClientOptions>config.minioOptions);
   }
 
   /**
@@ -44,31 +35,26 @@ export class S3Storage implements StorageDriver {
     options?: FileOptions
   ): Promise<StorageDriver$PutFileResponse> {
     const { mimeType } = options || {};
-    let params = {
-      Bucket: this.config.bucket,
-      Key: path,
-      Body: fileContent,
-      ContentType: mimeType ? mimeType : getMimeFromExtension(path),
-    } as PutObjectRequest;
 
-    const res = await this.client.upload(params).promise();
-    return { url: this.url(path), path };
+
+    const metaData: ItemBucketMetadata = {
+      'Content-Type': mimeType ? mimeType : getMimeFromExtension(path),
+    };
+
+    const res = await this.client.putObject(<string>this.config.bucket, path, fileContent, metaData);
+
+    return {
+      url: await this.url(path),
+      path
+    }
   }
 
   /**
    * Get Signed Urls
    * @param path
    */
-  signedUrl(path: string, expireInMinutes = 20): string {
-    const params = {
-      Bucket: this.config.bucket,
-      Key: path,
-      Expires: 60 * expireInMinutes,
-    };
-
-    const signedUrl = this.client.getSignedUrl("getObject", params);
-
-    return signedUrl;
+  async signedUrl(path: string, expireInMinutes = 24*60*60*7): Promise<string> {
+    return await this.client.presignedGetObject(<string>this.config.bucket, path, expireInMinutes);
   }
 
   /**
@@ -78,9 +64,16 @@ export class S3Storage implements StorageDriver {
    */
   async get(path: string): Promise<Buffer | null> {
     try {
-      const params = { Bucket: this.config.bucket || "", Key: path };
-      const res = await this.client.getObject(params).promise();
-      return res.Body as Buffer;
+      const readableStream = await this.client.getObject(<string>this.config.bucket, path);
+
+      const buffers = [];
+      // node.js readable streams implement the async iterator protocol
+      for await (const data of readableStream) {
+        buffers.push(data);
+      }
+
+      return Buffer.concat(buffers);
+
     } catch (e) {
       return null;
     }
@@ -93,7 +86,7 @@ export class S3Storage implements StorageDriver {
    */
   async exists(path: string): Promise<boolean> {
     const meta = await this.meta(path);
-    return Object.keys(meta).length > 0 ? true : false;
+    return Object.keys(meta).length > 0;
   }
 
   /**
@@ -101,20 +94,15 @@ export class S3Storage implements StorageDriver {
    * @param path
    */
   async meta(path: string): Promise<StorageDriver$FileMetadataResponse> {
-    const params = {
-      Bucket: this.config.bucket,
-      Key: path,
-    };
 
     try {
-      const res = await this.client
-        .headObject(params as HeadObjectRequest)
-        .promise();
+      const res = await this.client.statObject(<string>this.config.bucket, path);
       return {
         path: path,
-        contentType: res.ContentType,
-        contentLength: res.ContentLength,
-        lastModified: res.LastModified,
+        contentType: res.metaData?.ContentType,
+        contentLength: res.size,
+        lastModified: res.lastModified,
+        etag: res.etag
       };
     } catch (e) {
       return {};
@@ -128,7 +116,7 @@ export class S3Storage implements StorageDriver {
    */
   async missing(path: string): Promise<boolean> {
     const meta = await this.meta(path);
-    return Object.keys(meta).length === 0 ? true : false;
+    return Object.keys(meta).length === 0;
   }
 
   /**
@@ -136,9 +124,8 @@ export class S3Storage implements StorageDriver {
    *
    * @param path
    */
-  url(path: string): string {
-    const url = this.signedUrl(path, 20).split("?")[0];
-    return url;
+  async url(path: string): Promise<string> {
+    return await this.signedUrl(path, 24*60*60*7);
   }
 
   /**
@@ -147,9 +134,8 @@ export class S3Storage implements StorageDriver {
    * @param path
    */
   async delete(path: string): Promise<boolean> {
-    const params = { Bucket: this.config.bucket || "", Key: path };
     try {
-      await this.client.deleteObject(params).promise();
+      await this.client.removeObject(<string>this.config.bucket, path);
       return true;
     } catch (err) {
       return false;
@@ -166,14 +152,15 @@ export class S3Storage implements StorageDriver {
     path: string,
     newPath: string
   ): Promise<StorageDriver$RenameFileResponse> {
-    this.client
-      .copyObject({
-        Bucket: this.config.bucket || "",
-        CopySource: this.config.bucket + "/" + path,
-        Key: newPath,
-      })
-      .promise();
-    return { path: newPath, url: this.url(newPath) };
+    const source = await this.meta(path);
+    const conds = new minio.CopyConditions()
+    conds.setMatchETag(<string>source.etag);
+    await this.client.copyObject(<string>this.config.bucket, newPath, `/${this.config.bucket}/${path}`, conds);
+
+    return {
+      path: newPath,
+      url: await this.url(newPath)
+    };
   }
 
   /**
@@ -188,13 +175,16 @@ export class S3Storage implements StorageDriver {
   ): Promise<StorageDriver$RenameFileResponse> {
     await this.copy(path, newPath);
     await this.delete(path);
-    return { path: newPath, url: this.url(newPath) };
+    return {
+      path: newPath,
+      url: await this.url(newPath)
+    };
   }
 
   /**
    * Get instance of driver's client.
    */
-  getClient(): S3 {
+  getClient(): Client {
     return this.client;
   }
 
@@ -203,5 +193,18 @@ export class S3Storage implements StorageDriver {
    */
   getConfig(): Record<string, any> {
     return this.config;
+  }
+
+  async toBuffer(stream: ReadableStream<Uint8Array>) {
+    const list = []
+    const reader = stream.getReader()
+    while (true) {
+      const { value, done } = await reader.read()
+      if (value)
+        list.push(value)
+      if (done)
+        break
+    }
+    return Buffer.concat(list)
   }
 }

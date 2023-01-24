@@ -1,6 +1,5 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { StorageOptions } from './interfaces';
-import { StorageDriver } from './interfaces';
+import { Inject, Injectable } from '@nestjs/common';
+import { StorageDriver, StorageOptions } from './interfaces';
 import { DriverManager } from './driverManager';
 import { map } from './provider.map';
 

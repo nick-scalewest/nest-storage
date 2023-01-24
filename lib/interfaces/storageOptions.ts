@@ -1,15 +1,14 @@
 import { ModuleMetadata, Type } from "@nestjs/common/interfaces";
-import { Endpoint } from 'aws-sdk/lib/endpoint';
+import { ClientOptions as MinioClientOptions } from 'minio';
 
 export interface DiskOptions {
-  driver: "s3" | "local";
+  driver: "s3" | "local" | "minio";
   profile?: string;
   region?: string;
   bucket?: string;
   prefix?: string;
   basePath?: string;
-  endpoint?: string | Endpoint;
-  signatureVersion?: string;
+  minioOptions?: MinioClientOptions;
 }
 
 export interface StorageOptions {

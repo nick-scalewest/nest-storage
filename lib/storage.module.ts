@@ -1,12 +1,7 @@
-import { Module, DynamicModule, Provider, Type } from '@nestjs/common';
+import { DynamicModule, Module, Provider, Type } from '@nestjs/common';
 import { StorageService } from './storage.service';
-import {
-  StorageOptions,
-  StorageAsyncOptions,
-  StorageOptionsFactory,
-} from './interfaces';
+import { StorageAsyncOptions, StorageOptions, StorageOptionsFactory, } from './interfaces';
 import { map } from './provider.map';
-import { Storage } from './storage';
 
 @Module({
   providers: [],

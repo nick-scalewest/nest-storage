@@ -1,10 +1,6 @@
-import { Module, DynamicModule, Provider, Type } from '@nestjs/common';
+import { DynamicModule, Module, Provider, Type } from '@nestjs/common';
 import { StorageService } from './service';
-import {
-  StorageOptions,
-  StorageAsyncOptions,
-  StorageOptionsFactory,
-} from './interfaces';
+import { StorageAsyncOptions, StorageOptions, StorageOptionsFactory, } from './interfaces';
 import { STORAGE_OPTIONS } from './constants';
 
 @Module({
