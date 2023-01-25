@@ -9,6 +9,7 @@ export interface DiskOptions {
   prefix?: string;
   basePath?: string;
   minioOptions?: MinioClientOptions;
+  debug?: boolean
 }
 
 export interface StorageOptions {

@@ -42,7 +42,10 @@ export class Minio implements StorageDriver {
     };
 
     const res = await this.client.putObject(<string>this.config.bucket, path, fileContent, metaData);
-
+    if(this.config.debug){
+      console.log('REQUEST: put', {bucket: this.config.bucket, path, fileContent, metaData})
+      console.log('RESULT', res);
+    }
     return {
       url: await this.url(path),
       path

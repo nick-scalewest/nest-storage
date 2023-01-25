@@ -9,6 +9,7 @@ export const extensions: { [key: string]: any } = {
   'image/x-ms-bmp': 'bmp',
   'image/svg+xml': 'svg',
   'image/webp': 'webp',
+  'application/pdf': 'pdf'
 };
 
 export const getMimeFromExtension = (fileName: string): string => {
